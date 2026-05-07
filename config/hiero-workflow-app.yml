@@ -1,0 +1,15 @@
+﻿global_policies:
+  security:
+    enforce_dco: true
+  onboarding:
+    enabled: true
+
+repository_overrides:
+  hiero-sdk-python:
+    review_policy:
+      required_write_approvals: 2
+      requires_updated_branch: true
+  hiero-sdk-cpp:
+    review_policy:
+      required_write_approvals: 1
+      requires_updated_branch: false

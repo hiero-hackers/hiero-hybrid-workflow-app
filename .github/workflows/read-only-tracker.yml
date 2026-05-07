@@ -1,0 +1,15 @@
+﻿name: Read-Only PR Tracker
+on:
+  workflow_call:
+    inputs:
+      target_repo:
+        required: true
+        type: string
+permissions:
+  pull-requests: read
+  issues: read
+jobs:
+  track-status:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Executing read-only PR analysis..."
