@@ -4,52 +4,41 @@
 [![Octokit](https://img.shields.io/badge/Octokit-REST%20%7C%20Webhooks-blue.svg)](https://github.com/octokit)
 [![Status](https://img.shields.io/badge/Status-Proof%20of%20Concept-orange.svg)]()
 
-**Focus:** Scalable Abstraction, Configurable Policies, and Read-Only Default Boundaries.
+A sandbox exploring what a centralized GitHub App architecture could look like for Hiero's maintainer workflows.
 
-## Overview
-The Hiero ecosystem currently relies on fragmented, localized GitHub Action workflows across various SDKs (e.g., hiero-sdk-python vs hiero-sdk-cpp). This repository serves as a foundational sandbox demonstrating a **Hybrid Architecture (GitHub App + Actions)** designed to centralize maintainer workflows while respecting repository-specific security bounds.
+The Python SDK has 40+ workflow files. The C++ SDK consolidated similar logic into a handful of hardened scripts. The Swift SDK has contributor progression templates but no automation to back them up. This repo is an attempt to sketch out what an abstraction layer across all of them might look like.
 
-## The Architectural Strategy: A Hybrid Approach
+### The Approach
 
-Instead of forcing a "one-size-fits-all" yaml script into every repository, this architecture splits execution and orchestration:
+Right now every SDK repo owns its own workflow logic. When something needs fixing, you PR every repo separately. The idea here is to split that into two layers:
 
-1. **The GitHub App (The Orchestrator):** A Node.js backend utilizing @octokit/webhooks to listen to organization-wide events. It acts as the central brain, computing logic, validating DCO/GPG requirements, and managing state.
-2. **GitHub Actions (The Executors):** Individual repositories trigger lightweight, stateless Actions that receive execution commands from the central App, removing heavy scripting from the local .github/workflows directories.
+*   **A central Node.js app** (this repo) that listens for org-wide webhook events, runs the policy logic, and decides what should happen.
+*   **Lightweight callable actions** in each SDK repo that just execute what the central app decides.
 
-## Key Proof-of-Concept Features
+The SDK repos stay thin. The logic lives in one place.
 
-* **Centralized Policy Engine:** A single /config/hiero-workflow-app.yml dictates global rules while allowing granular repository overrides. 
-  * *Example:* Automatically handles the Python SDK's requirement for 2 write-approvals vs. the C++ SDK's requirement for 1, from a single codebase.
-* **Race Condition Mitigation:** Natively prevents assignment bot bugs caused by queued webhook snapshots. The app intercepts /assign comments and refetches the live issue state via the REST API before mutating data.
-* **Phase 1 Observability (Read-Only Default):** Designed to operate initially with pull-requests: read and issues: read to build maintainer trust before escalating to write permissions.
+### What's in here
 
-## Directory Structure
+*   **`src/index.js`** — the webhook listener built on Octokit. Handles PR events and issue comments, applies per-repo config rules.
+*   **`config/hiero-workflow-app.yml`** — central policy file with per-repo overrides. Different repos can have different rules without forking the logic.
+*   **`.github/workflows/read-only-tracker.yml`** — example callable action that runs with `pull-requests: read` and `issues: read` only.
 
-    ├── config/
-    │   └── hiero-workflow-app.yml    # Central policy & repository overrides
-    ├── src/
-    │   └── index.js                  # Node.js/Octokit App logic & webhook listeners
-    ├── .github/workflows/
-    │   └── read-only-tracker.yml     # Example stateless callable action
-    └── README.md
+### A note on permissions
 
-## Local Development & Testing
+The default stance here is read-only. The app starts with the minimum permissions needed to observe and report, and only escalates to write permissions once the logic has been reviewed by maintainers. This is intentional — trust has to be earned before a bot starts mutating state across 40 repos.
 
-This application uses the official github-app-js-sample spec.
+### Running locally
 
-### Prerequisites
-* Node.js v20+
-* Smee.io payload delivery channel (for local webhook testing)
+You'll need Node.js v20+ and a Smee.io channel to forward webhooks to your local machine.
 
-### Setup
-1. Clone the repository and install dependencies:
+```
+npm install
+```
+Set your `APP_ID`, `PRIVATE_KEY`, and `WEBHOOK_SECRET` in a `.env` file, then:
 
-    npm install
-
-2. Configure your .env variables (APP_ID, PRIVATE_KEY, WEBHOOK_SECRET).
-3. Start the application:
-
-    npm run start
+```
+npm run start
+```
 
 ---
-*Developed for the LF Decentralized Trust (LFDT) LFX Mentorship Application.*
+*Built as part of my LFX Mentorship application for the LFDT Hiero GitHub Workflow App project.*
